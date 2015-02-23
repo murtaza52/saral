@@ -5,32 +5,7 @@
             [clj-ssh.cli :as cli]
             [clojure.set :refer [difference intersection]]
             [slingshot.slingshot :refer [throw+ try+]]
-            [clostache.parser :refer [render render-resource]]))
-
-(comment (render "abc {{a.b.c}}" {:a {:b {:c 2}}}))
-
-(defmacro cmd [cmds arg extra-args]
-  (->> (for [v cmds]
-         (join " " v))
-       (join "; ")))
-
-(defn cmd2 [& cmds]
-  (->> (for [v cmds]
-         (join " " v))
-       (join "; ")))
-
-(defn join-cmds [& cmds] (clojure.string/join "; " cmds))
-
-(defn yum-install [package]
-  (fn[m]
-    (let [{:keys [version] :or [version ""]} (m package)]
-      (str "yum install " (name package) " " version))))
-
-(comment ((yum-install :jive-add-ons) {:version 1.2}))
-
-(def install-jive (yum-install :jive-add-on))
-
-(comment (install-jive {:jive-add-on {:version 1.2}}))
+            [clostache.parser :as clo]))
 
 (defn get-agent [identity-file]
   (if identity-file
@@ -54,45 +29,17 @@
 
 (comment (run-on-server (-> env :servers first) "ls; echo hello"))
 
-(defn cowsay [text] (str "sowsay " text))
-
-(defn ->cmd [v] (constantly v))
-
-(defn get-vars [s]
-  (as-> s s
-    (re-seq #"(?<=#\{).*?(?=\})" s)
-    (map #(split % #" ") s)
-    (map #(map read-string %) s)))
-
-(comment (get-vars "abc #{:abc :cde} def #{:xyz :wqt} do-not do-not-not")
-         (get-vars "yum install nginx #{:packages :nginx :version}")) 
-
-(defn replace-var [s ks v]
-  (clojure.string/replace s (str "#{" (clojure.string/join " " ks) "}") (str v)))
-
-(comment (replace-var "yum install nginx #{:packages :nginx :version}" [:packages :nginx :version] 1.2))
-
-(defn interpolate-cmd [config cmd]
-  (reduce (fn[s ks]
-            (replace-var s ks (get-in config ks)))
-          cmd
-          (get-vars cmd)))
-
-(comment (interpolate-cmd {:packages {:nginx {:version 1.7}}} "yum install nginx #{:packages :nginx :version}"))
-
-(get-in {:packages {:nginx {:version 1.7}}} [:packages :nginx :version])
-
 (defn get-cmd [args fns]
   (->> (map
         (fn[f]
           (if (string? f)
-            (interpolate-cmd args f)
+            (clo/render f args)
             (f args)))
         fns)
        (clojure.string/join "; " )))
 
-(comment (get-cmd {:packages {:nginx {:version 1.7}}} ["ls" "yum install nginx #{:packages :nginx :version}" "echo hello"])
-         (get-cmd {:say {:hello "from args"}} ["cd /" "ls" "echo hello #{:say :hello}"]))
+(comment (get-cmd {:packages {:nginx {:version 1.7}}} ["ls" "yum install nginx {{packages.nginx.version}}" "echo hello"])
+         (get-cmd {:say {:hello "from args"}} ["cd /" "ls" "echo hello {{say.hello}}"]))
 
 (defn contains-tags [f s]
   (= (set s) (intersection (set f) (set s))))
