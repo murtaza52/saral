@@ -1,12 +1,14 @@
 (ns saral.main
-  (:require [saral.core :refer [converge]]
+  (:require [saral.core :refer [converge dry-run get-converge-conf]]
             [environ.core :refer [env]]))
 
-(def tags-config {:uat {:fns [["echo uat!!"]]}
+(def tags-config {:uat {:fns [["echo uat!!"] ["error me"]]}
                   :prod {:fns [["echo prod!!"]]}
                   :app-server {:fns [["cd /" "ls"]
                                      ["echo hello {{say.hello}}"]]
-                               :args {:say {:hello "from args"}}}})
+                               :config {:say {:hello "from run time config"}}}})
 
-(comment (converge tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}}))
-
+(comment
+  (get-converge-conf tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}})
+  (dry-run tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}})
+  (converge tags-config (env :servers) [:uat] {:say {:hello "from converge"}}))
