@@ -1,6 +1,6 @@
 (ns saral.core
-  (:require [saral.ssh :refer [get-agent run-on-server]]
-            [clojure.string :refer [join split trim]]
+  (:require [saral.ssh :refer [get-agent run-cmds]]
+            [clojure.string :refer [join split trim blank?]]
             [environ.core :refer [env]]
             [clojure.set :refer [difference intersection]]
             [slingshot.slingshot :refer [throw+ try+]]
@@ -37,39 +37,49 @@
                   :prod {:fns [["echo prod!!"]]}
                   :app-server {:fns [["cd /" "ls"]
                                      ["echo hello {{say.hello}}"]]
-                               :config {:say {:hello "from run time config"}}}})
+                               :args {:say {:hello "from run time config"}}}})
 
 (defn filter-tags [tags-coll tags]
   (select-keys tags-coll tags))
 
 (comment (filter-tags tags-config [:uat :app-server]))
 
-(defn print-cmd-run [cmds {:keys [exit out err]}]
-  (doseq [cmd (split cmds #"; ")]
-    (println (str "=> " cmd)))
+(defn print-cmd-run [{:keys [cmd error out exit-code err-msg] :or {err-msg ""}}]
+  (doseq [v (split cmd #"; ")]
+    (println (str "=> " v)))
   (println "---------------------------------------------------------------------------------------------------------------")
-  (if (= 0 exit)
-    (do
-      (println (trim out))
-      (newline))
+  (if error
     (do
       (println "ERROR")
-      (println err))))
+      (println "Exit Code - " exit-code)
+      (when-not (blank? out) (println (trim out)))
+      (println "Error Message - " (trim err-msg)))
+    (do
+      (println (trim out))
+      (newline))))
 
-(comment (print-cmd-run "ls; echo hello" {:exit 0, :out "faiz-static\nfaiz.service\nhello\n", :err ""}))
+(comment (print-cmd-run {:cmd "ls",
+                         :error false,
+                         :out "faiz-static\nfaiz.service\n",
+                         :exit-code 0})
+         (print-cmd-run {:cmd "hello",
+                         :error true,
+                         :out "",
+                         :exit-code 127,
+                         :err-msg "bash: hello: command not found\n"}))
 
 (defn print-cmd-only [cmds]
   (doseq [cmd (split cmds #"; ")]
     (println (str "=> " cmd))))
 
-(defn get-converge-conf [config servers tags args]
+(defn create-config [config servers tags args]
   (loop [s (filter-servers servers tags)
          acc []]
     (if (seq s)
       (let [cmds (for [t (filter-tags config tags)
                        f (:fns (second t))
-                       :let [args (merge (:config (second t))
-                                         (:config (first s))
+                       :let [args (merge (:args (second t))
+                                         (:args (first s))
                                          args)]]
                    {:tag (first t) :cmd (get-cmd args f)})]
         (recur (rest s)
@@ -77,10 +87,10 @@
                      (merge (first s) {:cmds cmds}))))
       acc)))
 
-(comment (get-converge-conf tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}}))
+(comment (create-config tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}}))
 
 (defn dry-run [config servers tags args]
-  (let [to-run (get-converge-conf config servers tags args)]
+  (let [to-run (create-config config servers tags args)]
     (newline)
     (println (str "Converging servers containing the following tags : " (print-str tags)))
     (doseq [s to-run
@@ -92,38 +102,36 @@
       (newline)
       (print-cmd-only (:cmd cmd)))))
 
-;; (defn print-server-run []
-;;   (doseq [s to-run
-;;           cmd (-> s :cmds)]
-;;     (newline)
-;;     (println "###############################################################################################################")
-;;     (println (str "Converging server - " (:name s) " - with config for tag: " (name (:tag cmd))))
-;;     (println "###############################################################################################################")
-;;     (newline)
-;;     (let [cmd (:cmd cmd)
-;;           {:keys [exit] :as result} (run-on-server s cmd)]
-;;       (print-cmd-run cmd result)
-;;       (when (not= 0 exit) (throw+ {:cmd cmd :type ::cmd-run-error})))))
+(defn print-server-run [s]
+  (newline)
+  (println "###############################################################################################################")
+  (println (str "Applying config on server - " (:name s)))
+  (println "###############################################################################################################")
+  (newline)
+  (doseq [v (:cmds s)]
+    (print-cmd-run v)))
 
-(defn converge [config servers tags args]
-  (let [to-run (get-converge-conf config servers tags args)]
-    (newline)
-    (println (str "Converging servers containing the following tags : " (print-str tags)))
-    (try+
-     (doseq [s to-run
-             cmd (-> s :cmds)]
-       (newline)
-       (println "###############################################################################################################")
-       (println (str "Converging server - " (:name s) " - with config for tag: " (name (:tag cmd))))
-       (println "###############################################################################################################")
-       (newline)
-       (let [cmd (:cmd cmd)
-             {:keys [exit] :as result} (run-on-server s cmd)]
-         (print-cmd-run cmd result)
-         (when (not= 0 exit) (throw+ {:cmd cmd :type ::cmd-run-error}))))
-     (catch [:type ::cmd-run-error] {:keys [cmd]}
-       (println "Exiting the convergence run as error occurred.")))))
+(comment (print-server-run {:tags [:uat :app-server],
+                            :ip "52.0.104.167",
+                            :name "UAT App server",
+                            :cmds
+                            [{:cmd "ls",
+                              :error false,
+                              :out "faiz-static\nfaiz.service\n",
+                              :exit-code 0}
+                             {:cmd "hello",
+                              :error true,
+                              :out "",
+                              :exit-code 127,
+                              :err-msg "bash: hello: command not found\n"}],
+                            :identity-file "~/.ssh/faiz_hamza.pem",
+                            :user "core"}))
 
+(defn apply-config [config servers tags args]
+  (newline)
+  (println (str "Converging servers containing the following tags : " (print-str tags)))
+  (->> (create-config config servers tags args)
+       (map run-cmds)
+       (map print-server-run)))
 
-
-(comment (converge tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}}))
+(comment (apply-config tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}}))
