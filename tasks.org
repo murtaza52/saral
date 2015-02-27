@@ -1,0 +1,12 @@
+** to do 
+   - check error condition
+   - order of execution for servers
+   - log on the specific machine
+   - set up VMware machine 
+   - each application is a fn - takes args and returns a value. 
+   - handle the http connection, or ssh connection issues. 
+
+infra-tests
+   - each cmd is a map {:cmd (install :abc) :check [version (service :abc)]}
+   - return of each cmd run - [{:server {} :cmd "abc" :out "abc" :cmd-error true :check {:result true :details [{:name "version" :expected 1.2 :returned 1.2]]
+
