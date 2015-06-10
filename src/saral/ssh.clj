@@ -15,7 +15,7 @@
   (let [agent (get-agent identity-file)]
     (let [session (ssh/session agent ip {:username user})]
       (ssh/with-connection session
-        (let [{:keys [exit out err]} (ssh/ssh session cmd)]
+        (let [{:keys [exit out err]} (ssh/ssh session {:cmd cmd})]
           (if (= 0 exit)
             (merge m {:error false :out out :exit-code exit}) 
             (merge m {:error true :out out :exit-code exit :err-msg err})))))))
@@ -25,14 +25,14 @@
                    :user "core",
                    :identity-file "~/.ssh/faiz_hamza.pem",
                    :tags [:uat :app-server]}
-                  "ls; echo hello"))
+                  {:cmd "ls; echo hello" :tag :abc}))
 
 (defn run-cmds [s]
   (loop [cmds (:cmds s)
          acc []]
     (if-not (seq cmds)
       (assoc s :cmds acc)
-      (let[result (run-cmd s (:cmd (first cmds)))]
+      (let[result (run-cmd s (first cmds))]
         (if (:error result)
           (assoc s :cmds (conj acc result))
           (recur (rest cmds) (conj acc result)))))))

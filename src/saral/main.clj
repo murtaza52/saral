@@ -9,6 +9,6 @@
                                :args {:say {:hello "from run time config"}}}})
 
 (comment
-  (create-config tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}})
+  (create-config tags-config (env :servers) [:uat] [:app-server] {:say {:hello "from converge"}})
   (dry-run tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}})
   (apply-config tags-config (env :servers) [:uat] {:say {:hello "from converge"}}))

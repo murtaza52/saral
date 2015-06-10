@@ -129,7 +129,7 @@
 
 (defn apply-config [config servers tags args]
   (newline)
-  (println (str "Converging servers containing the following tags : " (print-str tags)))
+  (println (str "Applying config on servers containing the following tags : " (apply str tags)))
   (->> (create-config config servers tags args)
        (map run-cmds)
        (map print-server-run)))
