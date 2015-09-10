@@ -9,6 +9,11 @@
       agent)
     (ssh/ssh-agent {})))
 
+                                        ;optimize by adding memoize.
+;; maybe it can be optiomized till we get session
+;; explore other options of ssh
+;; we may not need ton run-cmds. Just have run-cmd, give it one colon separated string.
+
 (defn run-cmd [{:keys [ip user identity-file]
                 :or {identity-file nil}}
                {:keys [cmd] :as m}]
@@ -20,12 +25,10 @@
             (merge m {:error false :out out :exit-code exit}) 
             (merge m {:error true :out out :exit-code exit :err-msg err})))))))
 
-(comment (run-cmd {:name "UAT App server",
-                   :ip "52.0.104.167",
-                   :user "core",
-                   :identity-file "~/.ssh/faiz_hamza.pem",
-                   :tags [:uat :app-server]}
-                  {:cmd "ls; echo hello" :tag :abc}))
+(comment (run-cmd {:ip "52.11.233.104",
+                   :user "ec2-user",
+                   :identity-file "~/.ssh/techops_aws.pem"}
+                  {:cmd "cd ../; ls; echo hello"}))
 
 (defn run-cmds [s]
   (loop [cmds (:cmds s)
@@ -37,25 +40,18 @@
           (assoc s :cmds (conj acc result))
           (recur (rest cmds) (conj acc result)))))))
 
-(comment (run-cmds {:name "UAT App server",
-                    :ip "52.0.104.167",
-                    :user "core",
-                    :identity-file "~/.ssh/faiz_hamza.pem",
-                    :tags [:uat :app-server]
-                    :cmds '({:cmd "ls"}
-                            {:cmd "hello"}
-                            {:cmd "echo hello"})}))
-
 (comment (get-agent (:identity-file (-> env :servers first))))
 
-(comment (cli/ssh "52.0.104.167" "ls" :username "core" :ssh-agent (get-agent "~/.ssh/faiz_hamza.pem"))) 
+(comment (cli/ssh "52.0.104.167" "ls" :username "core" :ssh-agent (get-agent "~/.ssh/techops_aws.pem"))) 
 
 (comment (run-cmds {:name "UAT App server",
-                    :ip "52.0.104.167",
-                    :user "core",
-                    :identity-file "~/.ssh/faiz_hamza.pem",
+                    :ip "52.11.233.104",
+                    :user "ec2-user",
+                    :identity-file "~/.ssh/techops_aws.pem",
                     :tags [:uat :app-server]
-                    :cmds '({:cmd "ls" :out "abc" :error true}
+                    :cmds '({:cmd "cd ../"}
+                            {:cmd "ls"}
+                            {:cmd "cd ../; ls"}
                             {:cmd "hello"}
                             {:cmd "echo hi"})}))
 

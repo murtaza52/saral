@@ -10,3 +10,41 @@ infra-tests
    - each cmd is a map {:cmd (install :abc) :check [version (service :abc)]}
    - return of each cmd run - [{:server {} :cmd "abc" :out "abc" :cmd-error true :check {:result true :details [{:name "version" :expected 1.2 :returned 1.2]]
 
+-- make the templating engine pluggable. 
+
+{:dev {:web [{:name "abc"}]
+
+1. Ability to specify servers with tags. 
+2. Specify functions which can be run with specific tags.
+1. Match servers which match all tags. 
+2. Match configs which match each tag for each server.  
+
+- compute a diff based on change in data
+- the data itself is three funcs - create, update, delete
+- declarative - packages, files, folder, service, gem, npm, rpm's 
+
+[gems [:capabara 2.1 "abc"]]
+
+- change data based on functional relationships defined.
+- determine what is the diff in the data. - crud for a particular data point ?
+- apply 
+
+- display the diff
+- display the fns that get executed
+- display the commands that execute
+- return the result of running the commands
+
+
+- changes in the data should apply to the servers. 
+- changes in the servers should also trigger an application of data to it. 
+
+** Server config 
+- declrative format for config ex {::core/yum-packages [:abc :cde]} - namespaced keys to avoid conflict
+- apply the args first
+- caculate the diff 
+- A ring like middleware which transforms data onto commands.
+- SSH handler which applies the commands and returns the result.
+- middleware which then prints the commands. 
+ 
+
+

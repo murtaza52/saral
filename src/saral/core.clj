@@ -135,3 +135,77 @@
        (map print-server-run)))
 
 (comment (apply-config tags-config (env :servers) [:uat :app-server] {:say {:hello "from converge"}}))
+
+
+;; (#(take % (map first (iterate (fn [[a b]] [b (+ a b)]) [0 1]))) 5)
+
+;; three data points - fns, servers, args 
+(comment 
+  [:dev [jvm] {:jvm 2.12}
+   [:web [nginx] {:nginx 1.4}
+    [{:ip 12.2}
+     {:ip 12.2}]]
+   [:app [nginx] {:nginx 1.4}
+    [:service1 [registration-service] {:ip 12.2}
+     {:ip 12.2}]]]
+
+  {:dev
+   [[jvm nginx update]
+    {:jvm {:version 1.2}}
+    {:web
+     [[cde]
+      {}
+      [{:name "abc"}
+       {:name "cde"}]]}]
+   :prod
+   [[jvm nginx update]
+    {:web [{:name "abc"}
+           {:name "cde"}]
+     :app [{:name "abc"}
+           {:name "cde"}]}]})
+
+(def instance-1 {:almonds-type :instance
+               :almonds-tags [:dev-box]
+               :security-group-ids [[:classic 2]]
+               :key-name "ac"
+               :instance-type "t1.micro"
+               :instance-initiated-shutdown-behavior "stop"
+               :image-id "ami-66d0b40e"})
+
+{:web {::yum [:nginx]
+       ::npm [:capabara]
+       ::aws [instance-1]
+       {:dev {::args {:nginx 1.2 :capabara 3.2}
+              ::yum [:trace]}
+        :prod {::args {:nginx 1.2 :capabara 3.2}
+               ::yum [:error]}}}
+ :dev {:db [::datomic]}}
+
+;; collaborating with multiple clients
+;; transactor model
+;; one client pushes changes
+;; the pipelines are basically transactors. They are reacting to some change. Need a more robust model so that you can have either distributed or central transactors.
+;; pipeline - listen for a change and execute this change - imperative model.
+;; saral - listen for changes, based on that determine all that are affected, call respective handlers for all.
+;; two libraries - one for configuration management keys and functions.
+;; one for - keeping track of changes, calculating diff, call respective handlers with data and args, queue changes/ops through a central tramsactor  
+
+
+
+
+{[:uat :app 1] [[:web :dev]
+                [:dev :db]]}
+
+;; (def jvm (exec "Installing JVM with version {{version}}"
+;;                (fnk [version] (str "yum install jvm " version))))
+
+;; {:dev {:web [jvm nginx ]
+;;        :app [{:name "abc"}
+;;              {:name "cde"}]}
+;;  :prod {:web [{:name "abc"}
+;;               {:name "cde"}]
+;;         :app [{:name "abc"}
+;;               {:name "cde"}]}}
+
+
+
